@@ -1,0 +1,18 @@
+# Built artifacts
+build/
+app/build/
+.gradle/
+.kotlin/
+
+# Local machine configuration
+local.properties
+.idea/
+*.iml
+captures/
+
+# macOS
+.DS_Store
+
+# Logs and profiles
+*.log
+*.hprof

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">PostureGuard</string>
+    <string name="notification_channel_monitoring">坐姿监测</string>
+    <string name="notification_channel_description">监测期间的持续通知，可随时停止</string>
+    <string name="notification_monitoring_title">PostureGuard 正在本地监测</string>
+    <string name="notification_monitoring_text">画面只在本机处理，不会上传或保存视频</string>
+    <string name="notification_stop">结束监测</string>
+</resources>
