@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.postureguard.AppContainer
 import com.example.postureguard.data.settings.AnalysisFrameRate
 import com.example.postureguard.data.settings.AppSettings
+import com.example.postureguard.data.settings.CameraLens
 import com.example.postureguard.posture.model.FacingDirection
 import com.example.postureguard.posture.model.SensitivityPreset
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +45,10 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun updateFacingDirection(value: FacingDirection) = launchSetting { setFacingDirection(value) }
 
-    fun updateAlertCooldownMs(value: Long) = launchSetting { setAlertCooldownMs(value) }
+    fun updateCameraLens(value: CameraLens) = launchSetting { setCameraLens(value) }
+
+    fun updateAlertRepeatIntervalMs(value: Long) =
+        launchSetting { setAlertRepeatIntervalMs(value) }
 
     fun updateMildHoldDurationMs(value: Long) = launchSetting { setMildHoldDurationMs(value) }
 

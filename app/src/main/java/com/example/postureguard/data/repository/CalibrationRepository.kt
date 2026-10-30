@@ -10,9 +10,12 @@ import kotlinx.coroutines.flow.map
 
 class CalibrationRepository(private val dao: CalibrationDao) {
 
-    val activeProfile: Flow<CalibrationProfile?> = dao.observeActive().map { it?.toDomain() }
+    val activeProfile: Flow<CalibrationProfile?> = dao.observeActive().map { it?.currentOrNull()?.toDomain() }
 
-    suspend fun activeOnce(): CalibrationProfile? = dao.activeOnce()?.toDomain()
+    suspend fun activeOnce(): CalibrationProfile? = dao.activeOnce()?.currentOrNull()?.toDomain()
+
+    private fun CalibrationEntity.currentOrNull(): CalibrationEntity? =
+        takeIf { CalibrationProfile.isCurrent(it.modelVersion) }
 
     suspend fun save(profile: CalibrationProfile) {
         dao.deactivateAll()

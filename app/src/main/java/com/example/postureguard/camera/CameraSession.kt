@@ -13,14 +13,16 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.example.postureguard.data.settings.CameraLens
 import com.example.postureguard.vision.PoseLandmarkerEngine
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Owns CameraX binding for one preview surface. The back camera is preferred; a front
- * camera fallback is mirrored only in the overlay, never in the analyzed image.
+ * Owns CameraX binding for one preview surface. The requested lens is used when available,
+ * falling back to the other one; a front camera frame is mirrored only in the overlay, never
+ * in the analyzed image.
  */
 class CameraSession(
     private val context: Context,
@@ -28,6 +30,7 @@ class CameraSession(
     private val previewView: PreviewView,
     private val engine: PoseLandmarkerEngine,
     private val targetFps: Int,
+    private val lens: CameraLens,
     private val onFrame: (CameraFrameResult) -> Unit,
     private val onStatus: (CameraStatus) -> Unit,
     private val onError: (String) -> Unit,
@@ -59,9 +62,17 @@ class CameraSession(
     }
 
     private fun bind(cameraProvider: ProcessCameraProvider) {
-        val backSelector = CameraSelector.DEFAULT_BACK_CAMERA
-        val useFront = runCatching { !cameraProvider.hasCamera(backSelector) }.getOrDefault(false)
-        val selector = if (useFront) CameraSelector.DEFAULT_FRONT_CAMERA else backSelector
+        val wantFront = lens == CameraLens.FRONT
+        val primary = if (wantFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+        val secondary = if (wantFront) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
+        val hasPrimary = runCatching { cameraProvider.hasCamera(primary) }.getOrDefault(false)
+        val hasSecondary = runCatching { cameraProvider.hasCamera(secondary) }.getOrDefault(false)
+        val resolvedFront = when {
+            hasPrimary -> wantFront
+            hasSecondary -> !wantFront
+            else -> wantFront
+        }
+        val selector = if (resolvedFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
 
         val resolutionSelector = ResolutionSelector.Builder()
             .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
@@ -87,7 +98,7 @@ class CameraSession(
         val frameAnalyzer = PoseAnalyzer(
             engine = engine,
             targetFps = targetFps,
-            mirrored = useFront,
+            mirrored = resolvedFront,
             onFrame = onFrame,
             onError = onError,
         )

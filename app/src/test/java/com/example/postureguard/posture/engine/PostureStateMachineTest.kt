@@ -100,7 +100,7 @@ class PostureStateMachineTest {
     @Test
     fun severeChangeUsesShorterHold() {
         val machine = machine()
-        val severe = PostureDeltas(0.3, 0.0, 0.0)
+        val severe = PostureDeltas(0.4, 0.0, 0.0)
         val state = feed(machine, 0, 400, severe)
         assertEquals(PostureState.FORWARD_HEAD, state.state)
         assertEquals(ConditionSeverity.SEVERE, state.severity)
@@ -168,6 +168,14 @@ class PostureStateMachineTest {
         val machine = machine()
         val state = feed(machine, 0, 1_100, torso)
         assertEquals(PostureState.TORSO_LEAN, state.state)
+    }
+
+    @Test
+    fun headDownUnavailable_isIgnored() {
+        val machine = machine()
+        val unavailable = PostureDeltas(0.0, 20.0, 0.0, headDownAvailable = false)
+        val snapshot = feed(machine, 0, 1_500, unavailable)
+        assertEquals(PostureState.NORMAL, snapshot.state)
     }
 
     @Test

@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.postureguard.camera.CameraFrameResult
 import com.example.postureguard.camera.CameraSession
 import com.example.postureguard.camera.CameraStatus
+import com.example.postureguard.data.settings.CameraLens
 import com.example.postureguard.ui.theme.Ink
 import com.example.postureguard.ui.theme.InkSoft
 import com.example.postureguard.ui.theme.SurfaceWhite
@@ -47,6 +48,7 @@ import com.example.postureguard.vision.PoseEngineState
 fun PoseCameraView(
     active: Boolean,
     targetFps: Int,
+    lens: CameraLens,
     modifier: Modifier = Modifier,
     showLandmarks: Boolean = true,
     onFrame: (CameraFrameResult) -> Unit,
@@ -83,7 +85,7 @@ fun PoseCameraView(
     }
 
     val engine = (engineState as? PoseEngineState.Ready)?.engine
-    DisposableEffect(engine, active, lifecycleOwner) {
+    DisposableEffect(engine, active, lifecycleOwner, lens) {
         var session: CameraSession? = null
         if (engine != null && active) {
             session = CameraSession(
@@ -92,6 +94,7 @@ fun PoseCameraView(
                 previewView = previewView,
                 engine = engine,
                 targetFps = targetFps,
+                lens = lens,
                 onFrame = { result ->
                     mainHandler.post {
                         frame = result

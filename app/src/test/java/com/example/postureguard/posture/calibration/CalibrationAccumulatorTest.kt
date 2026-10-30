@@ -5,6 +5,7 @@ import com.example.postureguard.posture.model.FacingDirection
 import com.example.postureguard.posture.model.LandmarkQuality
 import com.example.postureguard.posture.model.RawMetrics
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -44,6 +45,52 @@ class CalibrationAccumulatorTest {
         assertEquals(2.0, result.profile.torsoAngleMedianDeg, 0.5)
         assertTrue(result.profile.forwardOffsetMad < 0.01)
         assertTrue(result.proposal.forwardHeadMild >= 0.10)
+    }
+
+    @Test
+    fun upperBodyCalibration_disablesTorsoLean() {
+        val acc = accumulator()
+        var timestamp = 0L
+        repeat(130) { index ->
+            val jitter = (index % 3 - 1) * 0.001
+            acc.addSample(
+                RawMetrics(0.30 + jitter, 4.0, 0.0, 0.13, torsoMeasured = false, faceMeasured = true),
+                quality,
+                timestamp,
+            )
+            timestamp += 100
+        }
+        now = 15_000
+        val result = acc.finish(timestamp)
+        assertTrue(result is CalibrationResult.Success)
+        result as CalibrationResult.Success
+        assertFalse(result.profile.torsoMeasured)
+        assertEquals(0.30, result.profile.forwardOffsetMedian, 0.005)
+        assertEquals(0.13, result.profile.torsoScaleMedian, 1e-6)
+        assertEquals(Double.POSITIVE_INFINITY, result.proposal.torsoLeanMildDeg, 0.0)
+        assertEquals(Double.POSITIVE_INFINITY, result.proposal.torsoLeanSevereDeg, 0.0)
+    }
+
+    @Test
+    fun missingFace_disablesHeadDown() {
+        val acc = accumulator()
+        var timestamp = 0L
+        repeat(130) { index ->
+            val jitter = (index % 3 - 1) * 0.001
+            acc.addSample(
+                RawMetrics(0.30 + jitter, 0.0, 0.0, 0.13, faceMeasured = false),
+                quality,
+                timestamp,
+            )
+            timestamp += 100
+        }
+        now = 15_000
+        val result = acc.finish(timestamp)
+        assertTrue(result is CalibrationResult.Success)
+        result as CalibrationResult.Success
+        assertFalse(result.profile.headDownMeasured)
+        assertEquals(Double.POSITIVE_INFINITY, result.proposal.headDownMildDeg, 0.0)
+        assertEquals(Double.POSITIVE_INFINITY, result.proposal.headDownSevereDeg, 0.0)
     }
 
     @Test

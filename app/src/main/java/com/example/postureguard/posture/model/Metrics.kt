@@ -1,11 +1,21 @@
 package com.example.postureguard.posture.model
 
-/** Geometry of one valid frame, in aspect-corrected normalized units. */
+/**
+ * Geometry of one valid frame, in aspect-corrected normalized units.
+ *
+ * [forwardOffset] is the weighted horizontal offset of the eye, nose and ear from the shoulder,
+ * normalized by the ear-to-shoulder distance, so it never needs the hip. [headAngleDeg] is the
+ * angle of the eye-nose-mouth face axis; it has no meaning unless [faceMeasured] is true.
+ * [torsoScale] is the shoulder-to-hip distance when the hip is usable and the ear-to-shoulder
+ * distance otherwise; it always describes body size for the drift detector.
+ */
 data class RawMetrics(
     val forwardOffset: Double,
     val headAngleDeg: Double,
     val torsoAngleDeg: Double,
     val torsoScale: Double,
+    val torsoMeasured: Boolean = true,
+    val faceMeasured: Boolean = true,
 )
 
 /** Change relative to the personal baseline. Positive = more of the named problem. */
@@ -13,6 +23,8 @@ data class PostureDeltas(
     val forwardHead: Double,
     val headDown: Double,
     val torsoLean: Double,
+    val torsoAvailable: Boolean = true,
+    val headDownAvailable: Boolean = true,
 )
 
 data class ConditionLevels(
@@ -36,20 +48,20 @@ enum class PostureCondition(val label: String) {
     FORWARD_HEAD("头部前倾"),
     HEAD_DOWN("低头"),
     HEAD_DOWN_FORWARD("埋头"),
-    TORSO_LEAN("躯干前倾"),
+    TORSO_LEAN("驼背/弯腰"),
 }
 
 enum class PostureState(val label: String) {
     NOT_READY("准备中"),
     NORMAL("姿态自然"),
-    SUSPECTED_FORWARD_HEAD("注意头部前移"),
+    SUSPECTED_FORWARD_HEAD("注意头肩前移"),
     FORWARD_HEAD("头部前倾"),
     SUSPECTED_HEAD_DOWN("注意低头"),
     HEAD_DOWN("低头"),
     SUSPECTED_HEAD_DOWN_FORWARD("注意埋头"),
     HEAD_DOWN_FORWARD("埋头"),
-    SUSPECTED_TORSO_LEAN("注意躯干前倾"),
-    TORSO_LEAN("躯干前倾"),
+    SUSPECTED_TORSO_LEAN("注意驼背/弯腰"),
+    TORSO_LEAN("驼背/弯腰"),
     LOW_CONFIDENCE("检测质量不足"),
     PERSON_NOT_FOUND("未检测到人体"),
     PAUSED("已暂停"),
@@ -83,7 +95,7 @@ enum class PostureState(val label: String) {
 enum class QualityIssue(val label: String) {
     PERSON_NOT_FOUND("未检测到人体"),
     LOW_CONFIDENCE("关键点置信度不足"),
-    BODY_PARTS_OUT_OF_FRAME("头、肩或髋超出画面"),
+    BODY_PARTS_OUT_OF_FRAME("头或肩超出画面"),
     TORSO_SCALE_INVALID("人体过小或距离过远"),
     HEAD_BELOW_HIP("人体方向异常"),
     SIDE_UNSTABLE("左右侧关键点不稳定"),

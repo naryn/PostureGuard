@@ -28,7 +28,7 @@ fun AboutScreen(onBack: () -> Unit) {
             PgInfoRow("版本", BuildConfig.VERSION_NAME)
             PgInfoRow("包名", BuildConfig.APPLICATION_ID)
             Text(
-                "通过手机后置摄像头从侧面观察坐姿，提示前倾、低头、埋头和躯干前倾。" +
+                "通过手机后置摄像头从侧面观察坐姿，提示前倾、低头、埋头和驼背/弯腰。" +
                     "定位为日常自我观察工具，不替代医疗或康复评估。",
                 style = MaterialTheme.typography.bodySmall,
                 color = InkSoft,
@@ -57,7 +57,7 @@ fun AboutScreen(onBack: () -> Unit) {
         PgCard {
             PgSectionTitle("阈值说明")
             Text(
-                "前倾、低头、躯干角度的默认阈值均为工程默认值，用于相对你个人校准基准的变化量，" +
+                "前倾、低头、肩髋角度的默认阈值均为工程默认值，用于相对你个人校准基准的变化量，" +
                     "并非医学标准。灵敏度和提醒节奏可在设置中调整。",
                 style = MaterialTheme.typography.bodySmall,
                 color = InkSoft,

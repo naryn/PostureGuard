@@ -130,7 +130,7 @@ fun ReportsScreen(
                 PgBarRow("头部前倾", today.forwardHeadDurationMs, maxValue, Warm)
                 PgBarRow("低头", today.headDownDurationMs, maxValue, Lavender)
                 PgBarRow("埋头（前倾 + 低头）", today.headDownForwardDurationMs, maxValue, Alert)
-                PgBarRow("躯干前倾", today.torsoLeanDurationMs, maxValue, TealDeep)
+                PgBarRow("驼背/弯腰", today.torsoLeanDurationMs, maxValue, TealDeep)
                 PgBarRow("低质量 / 离开画面", today.lowConfidenceDurationMs, maxValue, InkSoft)
             }
             PgNote("低质量、暂停与离开画面的时间单独统计，不会计入正常姿势。")

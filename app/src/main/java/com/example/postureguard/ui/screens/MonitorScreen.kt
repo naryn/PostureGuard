@@ -98,7 +98,6 @@ import com.example.postureguard.ui.util.severityLabel
 import com.example.postureguard.ui.viewmodel.CalibrationSnapshot
 import com.example.postureguard.ui.viewmodel.MonitorViewModel
 import com.example.postureguard.ui.viewmodel.rememberAppContainer
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlin.math.roundToInt
 
@@ -188,7 +187,6 @@ private fun MonitorBody(
     val profile = calibration.profile ?: return
     var mirrored by remember { mutableStateOf<Boolean?>(null) }
     var autoStarted by rememberSaveable { mutableStateOf(false) }
-    var alertVisible by remember { mutableStateOf(false) }
 
     val uiSettings = settings ?: AppSettings()
 
@@ -202,13 +200,9 @@ private fun MonitorBody(
         }
     }
 
-    LaunchedEffect(state.lastAlertAtMs) {
-        if (state.lastAlertAtMs != null) {
-            alertVisible = true
-            delay(6_000)
-            alertVisible = false
-        }
-    }
+    val persistentAlert = state.phase == MonitorPhase.RUNNING &&
+        state.lastAlert != null &&
+        state.snapshot?.let { it.metricsValid && it.state.isConfirmedAbnormal && !it.recovering } == true
 
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         viewModel.pause()
@@ -290,6 +284,7 @@ private fun MonitorBody(
                 CameraPreviewCard(
                     active = state.phase == MonitorPhase.RUNNING,
                     targetFps = uiSettings.targetFps,
+                    lens = uiSettings.cameraLens,
                     modifier = Modifier.fillMaxSize(),
                     onFrame = { frame ->
                         mirrored = frame.mirrored
@@ -319,7 +314,7 @@ private fun MonitorBody(
 
             StatusCard(state)
 
-            if (alertVisible && state.lastAlert != null) {
+            if (persistentAlert) {
                 PgNotice(
                     title = "姿态提醒",
                     detail = state.lastAlert!!.message,
@@ -331,7 +326,7 @@ private fun MonitorBody(
             if (state.cameraMoved) {
                 PgNotice(
                     title = "手机位置可能变化",
-                    detail = "肩髋比例明显偏离校准基准。建议结束本次监测后重新校准。",
+                    detail = "画面中的人体比例明显偏离校准基准。建议结束本次监测后重新校准。",
                     containerColor = WarmPale,
                     contentColor = Warm,
                     actionLabel = "结束并重新校准",
@@ -404,7 +399,7 @@ private fun MonitorBody(
                 )
                 PgSwitchRow(
                     title = "语音提示",
-                    description = "使用系统中文语音朗读提醒",
+                    description = "用系统中文语音朗读问题，如「低头了，请抬头」",
                     checked = uiSettings.speechEnabled,
                     onCheckedChange = viewModel::updateSpeechEnabled,
                 )
@@ -425,7 +420,7 @@ private fun MonitorBody(
             }
 
             Text(
-                "持续时长达到设置中的阈值后才会提醒；提醒间隔可避免频繁打断。",
+                "异常持续达到设定时长后会开始提醒；只要姿态没有恢复，就按设置的间隔重复提醒。",
                 style = MaterialTheme.typography.labelSmall,
                 color = InkSoft,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -513,7 +508,7 @@ private fun StatusCard(state: MonitorState) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 PgMetricTile(
-                    label = "头部前移",
+                    label = "头肩偏移",
                     value = deltas?.let { formatDecimal(it.forwardHead, 2) } ?: "—",
                     unit = "",
                     accent = levelColor(snapshot, 0),
@@ -521,21 +516,30 @@ private fun StatusCard(state: MonitorState) {
                 )
                 PgMetricTile(
                     label = "低头变化",
-                    value = deltas?.let { formatDecimal(it.headDown, 1) } ?: "—",
+                    value = deltas?.takeIf { it.headDownAvailable }?.let { formatDecimal(it.headDown, 1) } ?: "—",
                     unit = "°",
                     accent = levelColor(snapshot, 1),
                     modifier = Modifier.weight(1f),
                 )
                 PgMetricTile(
-                    label = "躯干变化",
-                    value = deltas?.let { formatDecimal(it.torsoLean, 1) } ?: "—",
+                    label = "肩髋角度",
+                    value = deltas?.takeIf { it.torsoAvailable }?.let { formatDecimal(it.torsoLean, 1) } ?: "—",
                     unit = "°",
                     accent = levelColor(snapshot, 2),
                     modifier = Modifier.weight(1f),
                 )
             }
             Text(
-                "数值为相对个人校准基准的变化量，仅用于自我观察。",
+                when {
+                    deltas == null -> "数值为相对个人校准基准的变化量，仅用于自我观察。"
+                    !deltas.torsoAvailable && !deltas.headDownAvailable ->
+                        "未拍到髋部、未检测到眼睛和嘴部时，仅用眼睛、鼻子、耳朵与头肩偏移判断前倾；低头与驼背/弯腰暂不判断。"
+                    !deltas.torsoAvailable ->
+                        "未拍到髋部时，用眼睛、鼻子、耳朵与头肩偏移判断前倾，用面部轴线判断低头；驼背/弯腰（肩髋角度）暂不判断。"
+                    !deltas.headDownAvailable ->
+                        "未检测到眼睛和嘴部时，暂不判断低头；前倾与驼背/弯腰正常判断。"
+                    else -> "前倾看眼睛、鼻子、耳朵相对肩膀的偏移；低头看眼睛-鼻子-嘴部；驼背/弯腰看肩膀与髋部的垂直角度。数值为相对校准基准的变化量。"
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = InkSoft,
             )
@@ -548,7 +552,7 @@ private fun qualityDescription(state: MonitorState, snapshot: com.example.postur
     if (snapshot == null) return "正在等待相机帧与姿态模型…"
     if (!snapshot.metricsValid) {
         if (QualityIssue.PERSON_NOT_FOUND in snapshot.quality.issues) {
-            return "未检测到人体。请回到座位，并让头、肩、髋完整进入画面。"
+            return "未检测到人体。请回到座位，并让头、肩进入画面。"
         }
         val issues = snapshot.quality.issues.joinToString(" · ") { it.label }
         return if (issues.isNotEmpty()) "$issues，暂不累计姿态时长。" else "关键点质量不足，暂不累计姿态时长。"
@@ -681,7 +685,7 @@ private fun FinishedContent(
                 PgBarRow("头部前倾", s.forwardHeadDurationMs, maxValue, Warm)
                 PgBarRow("低头", s.headDownDurationMs, maxValue, Lavender)
                 PgBarRow("埋头", s.headDownForwardDurationMs, maxValue, Alert)
-                PgBarRow("躯干前倾", s.torsoLeanDurationMs, maxValue, TealDeep)
+                PgBarRow("驼背/弯腰", s.torsoLeanDurationMs, maxValue, TealDeep)
                 PgBarRow("低质量/离开画面", s.lowConfidenceDurationMs, maxValue, InkSoft)
                 if (paused > 0) {
                     PgInfoRow("暂停时长", formatCompactDuration(paused))

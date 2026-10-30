@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.postureguard.AppContainer
 import com.example.postureguard.camera.CameraFrameResult
+import com.example.postureguard.data.settings.CameraLens
 import com.example.postureguard.posture.calibration.CalibrationAccumulator
 import com.example.postureguard.posture.calibration.CalibrationResult
 import com.example.postureguard.posture.features.PostureFeaturePipeline
 import com.example.postureguard.posture.model.BodySide
+import com.example.postureguard.posture.model.CalibrationProfile
 import com.example.postureguard.posture.model.FacingDirection
 import com.example.postureguard.posture.model.PoseFrame
 import com.example.postureguard.vision.VisionModelInfo
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
 
 data class CalibrationUiState(
     val facing: FacingDirection = FacingDirection.FACING_RIGHT,
+    val lens: CameraLens = CameraLens.BACK,
     val liveQualityValid: Boolean = false,
     val liveSide: BodySide? = null,
     val running: Boolean = false,
@@ -49,7 +52,9 @@ class CalibrationViewModel(private val container: AppContainer) : ViewModel() {
     init {
         viewModelScope.launch {
             val settings = container.settingsRepository.settingsOnce()
-            _state.update { it.copy(facing = settings.facingDirection) }
+            _state.update {
+                it.copy(facing = settings.facingDirection, lens = settings.cameraLens)
+            }
         }
     }
 
@@ -88,7 +93,7 @@ class CalibrationViewModel(private val container: AppContainer) : ViewModel() {
         accumulator = CalibrationAccumulator(
             facingDirection = current.facing,
             side = side,
-            modelVersion = VisionModelInfo.MODEL_VERSION,
+            modelVersion = CalibrationProfile.stamp(VisionModelInfo.MODEL_VERSION),
         )
         _state.update {
             it.copy(

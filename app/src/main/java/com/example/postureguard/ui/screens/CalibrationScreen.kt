@@ -83,6 +83,7 @@ fun CalibrationScreen(
                 CameraPreviewCard(
                     active = true,
                     targetFps = 10,
+                    lens = state.lens,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(270.dp),
@@ -219,7 +220,7 @@ private fun ProgressCard(
             )
             if (!canStart) {
                 Text(
-                    "请先让头、肩、髋完整出现在画面中，关键点稳定后即可开始。",
+                    "请先让头、肩和眼睛、鼻子、耳朵、嘴部完整出现在画面中，关键点稳定后即可开始。",
                     style = MaterialTheme.typography.bodySmall,
                     color = InkSoft,
                 )
@@ -283,12 +284,20 @@ private fun SuccessCard(
 private fun ProfileDetails(profile: CalibrationProfile) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         PgDivider()
-        PgInfoRow("耳肩前移中位数", formatDecimal(profile.forwardOffsetMedian))
-        PgInfoRow("头部角度中位数", "${formatDecimal(profile.headAngleMedianDeg, 1)}°")
-        PgInfoRow("躯干角度中位数", "${formatDecimal(profile.torsoAngleMedianDeg, 1)}°")
-        PgInfoRow("前移波动 (MAD)", formatDecimal(profile.forwardOffsetMad, 3))
-        PgInfoRow("头部波动 (MAD)", "${formatDecimal(profile.headAngleMadDeg, 1)}°")
-        PgInfoRow("躯干波动 (MAD)", "${formatDecimal(profile.torsoAngleMadDeg, 1)}°")
+        PgInfoRow("头肩偏移中位数", formatDecimal(profile.forwardOffsetMedian))
+        PgInfoRow("头肩偏移波动 (MAD)", formatDecimal(profile.forwardOffsetMad, 3))
+        if (profile.headDownMeasured) {
+            PgInfoRow("面部角度中位数", "${formatDecimal(profile.headAngleMedianDeg, 1)}°")
+            PgInfoRow("面部波动 (MAD)", "${formatDecimal(profile.headAngleMadDeg, 1)}°")
+        } else {
+            PgInfoRow("低头判断", "未检测到眼睛和嘴部，已关闭")
+        }
+        if (profile.torsoMeasured) {
+            PgInfoRow("肩髋角度中位数", "${formatDecimal(profile.torsoAngleMedianDeg, 1)}°")
+            PgInfoRow("肩髋角度波动 (MAD)", "${formatDecimal(profile.torsoAngleMadDeg, 1)}°")
+        } else {
+            PgInfoRow("驼背/弯腰判断", "未拍到髋部，已关闭")
+        }
         PgInfoRow("关键点质量", formatPercent(profile.qualityMedian))
         Text(
             "这些数值用于调整提醒灵敏度，不是健康评分。",

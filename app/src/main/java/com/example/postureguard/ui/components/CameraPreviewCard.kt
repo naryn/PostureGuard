@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.postureguard.camera.CameraFrameResult
 import com.example.postureguard.camera.CameraStatus
+import com.example.postureguard.data.settings.CameraLens
 import com.example.postureguard.ui.theme.Ink
 import com.example.postureguard.vision.PoseEngineState
 
@@ -15,6 +16,7 @@ import com.example.postureguard.vision.PoseEngineState
 fun CameraPreviewCard(
     active: Boolean,
     targetFps: Int,
+    lens: CameraLens,
     modifier: Modifier = Modifier,
     showLandmarks: Boolean = true,
     onFrame: (CameraFrameResult) -> Unit,
@@ -29,6 +31,7 @@ fun CameraPreviewCard(
         PoseCameraView(
             active = active,
             targetFps = targetFps,
+            lens = lens,
             modifier = Modifier.fillMaxSize(),
             showLandmarks = showLandmarks,
             onFrame = onFrame,

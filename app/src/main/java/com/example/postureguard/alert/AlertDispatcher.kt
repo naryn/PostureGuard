@@ -13,8 +13,8 @@ import java.util.Locale
 import java.util.UUID
 
 /**
- * Plays the local alert channels selected by [AlertPlanner]. Speech stays silent until the
- * TTS engine has finished initializing, so an unavailable engine never blocks monitoring.
+ * Plays the local alert channels selected by [AlertPlanner]. The latest speech request is
+ * queued until the TTS engine finishes initializing; an unavailable engine never blocks monitoring.
  */
 class AlertDispatcher(context: Context) : AutoCloseable {
 
@@ -34,6 +34,8 @@ class AlertDispatcher(context: Context) : AutoCloseable {
     private var ttsReady = false
 
     private var tts: TextToSpeech? = null
+    private val speechLock = Any()
+    private var pendingSpeech: String? = null
 
     init {
         runCatching {
@@ -43,6 +45,12 @@ class AlertDispatcher(context: Context) : AutoCloseable {
                     ttsReady = language != null &&
                         language != TextToSpeech.LANG_MISSING_DATA &&
                         language != TextToSpeech.LANG_NOT_SUPPORTED
+                    if (ttsReady) {
+                        val queued = synchronized(speechLock) {
+                            pendingSpeech.also { pendingSpeech = null }
+                        }
+                        queued?.let(::speak)
+                    }
                 }
             }
         }.onFailure { Log.w(TAG, "TTS unavailable", it) }
@@ -71,7 +79,11 @@ class AlertDispatcher(context: Context) : AutoCloseable {
     }
 
     private fun speak(message: String) {
-        if (!ttsReady) return
+        if (!ttsReady) {
+            // The engine often finishes initializing moments after monitoring starts.
+            synchronized(speechLock) { pendingSpeech = message }
+            return
+        }
         runCatching {
             tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, UUID.randomUUID().toString())
         }.onFailure { Log.w(TAG, "Speech failed", it) }

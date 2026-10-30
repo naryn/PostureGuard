@@ -245,7 +245,7 @@ fun HomeScreen(
             HomeLinkRow(
                 icon = Icons.Rounded.CameraAlt,
                 title = "摆放手机",
-                subtitle = "侧面、稳定、头肩髋都在画面内",
+                subtitle = "侧面、稳定、头肩在画面内",
                 onClick = onCameraSetup,
             )
             PgDivider()

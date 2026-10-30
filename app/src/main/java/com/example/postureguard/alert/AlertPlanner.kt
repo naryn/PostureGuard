@@ -6,12 +6,12 @@ import com.example.postureguard.posture.model.PostureSnapshot
 import com.example.postureguard.posture.model.PostureState
 
 data class AlertPolicy(
-    val soundEnabled: Boolean = true,
-    val speechEnabled: Boolean = false,
+    val soundEnabled: Boolean = false,
+    val speechEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
-    val mildHoldDurationMs: Long = 8_000,
+    val mildHoldDurationMs: Long = 5_000,
     val severeHoldDurationMs: Long = 3_000,
-    val cooldownMs: Long = 120_000,
+    val repeatIntervalMs: Long = 10_000,
     val recoveryHoldDurationMs: Long = 4_000,
 )
 
@@ -31,27 +31,33 @@ data class AlertRequest(
 
 /**
  * Decides when a confirmed abnormal state deserves an interrupt. The state machine has
- * already applied hold durations; this planner only handles cooldown, channel selection
- * and the user facing copy.
+ * already applied hold durations; this planner repeats the reminder while the abnormal
+ * state persists, throttled by [AlertPolicy.repeatIntervalMs], and resets once posture is
+ * back to normal.
  */
 class AlertPlanner(
     private val policy: AlertPolicy,
     messages: Map<PostureCondition, String> = DEFAULT_MESSAGES,
 ) {
     private val lessonCopy = messages
-    private val lastAlertAtMs = mutableMapOf<PostureCondition, Long>()
+    private var lastCondition: PostureCondition? = null
+    private var lastAlertAtMs: Long? = null
 
     fun onSnapshot(snapshot: PostureSnapshot): AlertRequest? {
         if (snapshot.state == PostureState.NORMAL) {
-            lastAlertAtMs.clear()
+            reset()
             return null
         }
         if (!snapshot.metricsValid || snapshot.recovering) return null
         if (!snapshot.state.isConfirmedAbnormal) return null
         val condition = snapshot.condition ?: return null
-        val last = lastAlertAtMs[condition]
-        if (last != null && snapshot.timestampMs - last < policy.cooldownMs) return null
-        lastAlertAtMs[condition] = snapshot.timestampMs
+        val last = lastAlertAtMs
+        val repeatingSameCondition = condition == lastCondition
+        if (last != null && repeatingSameCondition && snapshot.timestampMs - last < policy.repeatIntervalMs) {
+            return null
+        }
+        lastCondition = condition
+        lastAlertAtMs = snapshot.timestampMs
         return AlertRequest(
             condition = condition,
             severity = snapshot.severity,
@@ -61,7 +67,10 @@ class AlertPlanner(
         )
     }
 
-    fun reset() = lastAlertAtMs.clear()
+    fun reset() {
+        lastCondition = null
+        lastAlertAtMs = null
+    }
 
     private fun enabledChannels(): Set<AlertChannel> = buildSet {
         if (policy.soundEnabled) add(AlertChannel.SOUND)
@@ -71,10 +80,10 @@ class AlertPlanner(
 
     companion object {
         val DEFAULT_MESSAGES: Map<PostureCondition, String> = mapOf(
-            PostureCondition.FORWARD_HEAD to "头部有些前倾，试着回到舒适坐姿。",
-            PostureCondition.HEAD_DOWN to "注意抬头，放松颈部。",
-            PostureCondition.HEAD_DOWN_FORWARD to "头部前倾并低头，慢慢抬起头来吧。",
-            PostureCondition.TORSO_LEAN to "身体持续前倾，可以调整一下坐姿。",
+            PostureCondition.FORWARD_HEAD to "头肩前倾了，请坐直。",
+            PostureCondition.HEAD_DOWN to "低头了，请抬头。",
+            PostureCondition.HEAD_DOWN_FORWARD to "驼背低头了，请抬头坐直。",
+            PostureCondition.TORSO_LEAN to "驼背弯腰了，请坐直。",
         )
     }
 }

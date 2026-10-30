@@ -84,11 +84,17 @@ enum class BodySide {
     RIGHT,
     ;
 
+    val opposite: BodySide
+        get() = if (this == LEFT) RIGHT else LEFT
+
     val ear: LandmarkType
         get() = if (this == LEFT) LandmarkType.LEFT_EAR else LandmarkType.RIGHT_EAR
 
     val eye: LandmarkType
         get() = if (this == LEFT) LandmarkType.LEFT_EYE else LandmarkType.RIGHT_EYE
+
+    val mouth: LandmarkType
+        get() = if (this == LEFT) LandmarkType.MOUTH_LEFT else LandmarkType.MOUTH_RIGHT
 
     val shoulder: LandmarkType
         get() = if (this == LEFT) LandmarkType.LEFT_SHOULDER else LandmarkType.RIGHT_SHOULDER

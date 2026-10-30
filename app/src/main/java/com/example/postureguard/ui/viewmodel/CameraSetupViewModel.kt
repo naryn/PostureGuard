@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.postureguard.AppContainer
 import com.example.postureguard.camera.CameraFrameResult
 import com.example.postureguard.data.settings.AppSettings
+import com.example.postureguard.data.settings.CameraLens
 import com.example.postureguard.posture.features.PostureFeaturePipeline
 import com.example.postureguard.posture.model.BodySide
 import com.example.postureguard.posture.model.FacingDirection
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 data class CameraProbeState(
     val hasPerson: Boolean = false,
     val qualityValid: Boolean = false,
+    val faceVisible: Boolean = false,
     val selectedSide: BodySide? = null,
     val issues: Set<QualityIssue> = emptySet(),
     val mirrored: Boolean = false,
@@ -48,6 +50,7 @@ class CameraSetupViewModel(private val container: AppContainer) : ViewModel() {
             CameraProbeState(
                 hasPerson = feature.side != null,
                 qualityValid = feature.quality.valid,
+                faceVisible = feature.metrics?.faceMeasured == true,
                 selectedSide = feature.quality.selectedSide,
                 issues = feature.quality.issues,
                 mirrored = result.mirrored,
@@ -58,5 +61,11 @@ class CameraSetupViewModel(private val container: AppContainer) : ViewModel() {
     fun setFacing(direction: FacingDirection) {
         pipeline.reset()
         viewModelScope.launch { container.settingsRepository.setFacingDirection(direction) }
+    }
+
+    fun setLens(lens: CameraLens) {
+        pipeline.reset()
+        _probe.value = CameraProbeState()
+        viewModelScope.launch { container.settingsRepository.setCameraLens(lens) }
     }
 }

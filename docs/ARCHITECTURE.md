@@ -21,7 +21,7 @@ CameraX Preview ─────────────► 预览 Surface
                  ├─ PostureStateMachine     时间制状态 + 迟滞
                  ├─ MonitoringSessionRecorder 时长分类聚合（跨天/跨小时拆分）
                  ├─ CameraDriftDetector     手机位置变化提示
-                 ├─ AlertPlanner            冷却与严重度
+                 ├─ AlertPlanner            重复提醒与严重度
                  └─ StateFlow<MonitorState> ──► Compose 监测页
                  └─ checkpoint ──► persistence 单线程 ──► Room
                  └─ AlertDispatcher ──► ToneGenerator / TTS / Vibrator
@@ -37,7 +37,7 @@ CameraX Preview ─────────────► 预览 Surface
 | `posture.filters` | 帧率无关 EMA（标量/角度） | 无 |
 | `posture.calibration` | 校准样本收集、稳健统计、失败原因 | `posture.model` |
 | `posture.engine` | 时间制状态机与迟滞 | `posture.model` |
-| `alert` | 提醒计划（冷却）与声音/语音/振动分发 | `posture.model`, Android |
+| `alert` | 提醒计划（持续异常按间隔重复）与声音/语音/振动分发 | `posture.model`, Android |
 | `monitoring` | 会话控制器、会话状态、时长聚合 | 领域层、数据层、提醒、相机 |
 | `vision` | MediaPipe 初始化、串行推理封装、模型元数据 | MediaPipe |
 | `camera` | CameraX 会话、图像分析、帧数据 | CameraX |
@@ -118,7 +118,7 @@ Room 数据库 `posture_guard.db`，version 1：
 - 日报/小时报直接对 `session_days` / `session_hours` 求和，不重复扫描会话明细。
 - 应用启动时完成遗留会话；设置页提供「删除全部历史统计」「删除校准数据」。
 
-设置使用 DataStore Preferences（`posture_guard_settings`），字段包括灵敏度、提醒开关、分析帧率、朝向、冷却/持续时间、屏幕常亮、引导完成标记。
+设置使用 DataStore Preferences（`posture_guard_settings`），字段包括灵敏度、提醒开关、分析帧率、朝向、重复提醒间隔/持续时间、屏幕常亮、引导完成标记。
 
 ## 8. 依赖注入
 

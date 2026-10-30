@@ -16,7 +16,7 @@ data class CalibrationConfig(
     val warmupMs: Long = 2_000,
     val minValidRatio: Double = 0.60,
     val minSamples: Int = 40,
-    val maxForwardOffsetMad: Double = 0.12,
+    val maxForwardOffsetMad: Double = 0.18,
     val maxHeadAngleMadDeg: Double = 15.0,
     val maxTorsoAngleMadDeg: Double = 12.0,
 )
@@ -31,7 +31,7 @@ data class CalibrationProgress(
 )
 
 enum class CalibrationFailureReason(val message: String) {
-    NOT_ENOUGH_SAMPLES("有效样本不足，请保持头、肩、髋在画面内后重试"),
+    NOT_ENOUGH_SAMPLES("有效样本不足，请保持头、肩和面部（眼睛、鼻子、耳朵、嘴）在画面内后重试"),
     UNSTABLE_POSTURE("校准期间姿势波动较大，请保持自然坐姿后重试"),
     SIDE_UNSTABLE("左右侧关键点反复切换，请调整手机角度"),
     TIMEOUT("校准时间不足，请重试"),
@@ -69,6 +69,7 @@ class CalibrationAccumulator(
     private val headValues = mutableListOf<Double>()
     private val torsoValues = mutableListOf<Double>()
     private val torsoScaleValues = mutableListOf<Double>()
+    private val headScaleValues = mutableListOf<Double>()
     private val qualityValues = mutableListOf<Double>()
 
     val isFinished: Boolean
@@ -79,20 +80,24 @@ class CalibrationAccumulator(
         val inWarmup = elapsed < config.warmupMs
         if (!isFinished && elapsed <= config.durationMs) {
             totalSamples++
-            val usable = !inWarmup &&
-                metrics != null &&
+            val sample = metrics
+            if (!inWarmup &&
+                sample != null &&
                 quality.valid &&
                 quality.selectedSide == side &&
-                metrics.forwardOffset.isFinite() &&
-                metrics.headAngleDeg.isFinite() &&
-                metrics.torsoAngleDeg.isFinite() &&
-                metrics.torsoScale > 0
-            if (usable && metrics != null) {
+                sample.forwardOffset.isFinite() &&
+                sample.headAngleDeg.isFinite() &&
+                sample.torsoScale > 0
+            ) {
                 validSamples++
-                forwardValues += metrics.forwardOffset
-                headValues += metrics.headAngleDeg
-                torsoValues += metrics.torsoAngleDeg
-                torsoScaleValues += metrics.torsoScale
+                forwardValues += sample.forwardOffset
+                if (sample.faceMeasured) headValues += sample.headAngleDeg
+                if (sample.torsoMeasured) {
+                    torsoValues += sample.torsoAngleDeg
+                    torsoScaleValues += sample.torsoScale
+                } else {
+                    headScaleValues += sample.torsoScale
+                }
                 qualityValues += quality.score
             }
         }
@@ -123,23 +128,38 @@ class CalibrationAccumulator(
 
         val forward = stableValues(forwardValues)
         val head = stableValues(headValues)
-        val torso = stableValues(torsoValues)
-        if (forward.size < config.minSamples / 2 || head.size < config.minSamples / 2) {
+        val faceMode = headValues.size >= maxOf(config.minSamples / 2, 1)
+        val torsoMode = torsoValues.size >= maxOf(config.minSamples / 2, 1)
+        val torso = if (torsoMode) stableValues(torsoValues) else emptyList()
+        if (forward.size < config.minSamples / 2 || (faceMode && head.size < config.minSamples / 2)) {
             return CalibrationResult.Failure(CalibrationFailureReason.NOT_ENOUGH_SAMPLES, validRatio)
         }
 
         val forwardMedian = Geometry.median(forward.toDoubleArray())
-        val headMedian = Geometry.median(head.toDoubleArray())
-        val torsoMedian = Geometry.median(torso.toDoubleArray())
+        val headMedian = if (faceMode) Geometry.median(head.toDoubleArray()) else 0.0
+        val torsoMedian = if (torsoMode) Geometry.median(torso.toDoubleArray()) else 0.0
         val forwardMad = Geometry.medianAbsoluteDeviation(forward.toDoubleArray(), forwardMedian)
-        val headMad = Geometry.medianAbsoluteDeviation(head.toDoubleArray(), headMedian)
-        val torsoMad = Geometry.medianAbsoluteDeviation(torso.toDoubleArray(), torsoMedian)
+        val headMad = if (faceMode) {
+            Geometry.medianAbsoluteDeviation(head.toDoubleArray(), headMedian)
+        } else {
+            CalibrationProfile.UNMEASURED_MAD
+        }
+        val torsoMad = if (torsoMode) {
+            Geometry.medianAbsoluteDeviation(torso.toDoubleArray(), torsoMedian)
+        } else {
+            CalibrationProfile.UNMEASURED_MAD
+        }
 
         if (forwardMad > config.maxForwardOffsetMad ||
-            headMad > config.maxHeadAngleMadDeg ||
-            torsoMad > config.maxTorsoAngleMadDeg
+            (faceMode && headMad > config.maxHeadAngleMadDeg) ||
+            (torsoMode && torsoMad > config.maxTorsoAngleMadDeg)
         ) {
             return CalibrationResult.Failure(CalibrationFailureReason.UNSTABLE_POSTURE, validRatio)
+        }
+
+        val scaleValues = if (torsoMode) torsoScaleValues else headScaleValues
+        if (scaleValues.isEmpty()) {
+            return CalibrationResult.Failure(CalibrationFailureReason.NOT_ENOUGH_SAMPLES, validRatio)
         }
 
         val profile = CalibrationProfile(
@@ -149,7 +169,7 @@ class CalibrationAccumulator(
             forwardOffsetMedian = forwardMedian,
             headAngleMedianDeg = headMedian,
             torsoAngleMedianDeg = torsoMedian,
-            torsoScaleMedian = Geometry.median(torsoScaleValues.toDoubleArray()),
+            torsoScaleMedian = Geometry.median(scaleValues.toDoubleArray()),
             forwardOffsetMad = forwardMad,
             headAngleMadDeg = headMad,
             torsoAngleMadDeg = torsoMad,

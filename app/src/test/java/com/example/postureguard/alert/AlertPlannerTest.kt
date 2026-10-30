@@ -19,7 +19,7 @@ class AlertPlannerTest {
         soundEnabled = true,
         speechEnabled = false,
         vibrationEnabled = true,
-        cooldownMs = 10_000,
+        repeatIntervalMs = 10_000,
     )
 
     private fun snapshot(
@@ -47,15 +47,17 @@ class AlertPlannerTest {
     }
 
     @Test
-    fun confirmedState_alertsOncePerCooldown() {
+    fun confirmedState_repeatsAtInterval() {
         val planner = AlertPlanner(policy)
         assertNotNull(planner.onSnapshot(snapshot(PostureState.FORWARD_HEAD, timestampMs = 0)))
         assertNull(planner.onSnapshot(snapshot(PostureState.FORWARD_HEAD, timestampMs = 5_000)))
         assertNotNull(planner.onSnapshot(snapshot(PostureState.FORWARD_HEAD, timestampMs = 10_000)))
+        assertNull(planner.onSnapshot(snapshot(PostureState.FORWARD_HEAD, timestampMs = 15_000)))
+        assertNotNull(planner.onSnapshot(snapshot(PostureState.FORWARD_HEAD, timestampMs = 20_000)))
     }
 
     @Test
-    fun normalState_resetsCooldown() {
+    fun normalState_resetsRepeatGate() {
         val planner = AlertPlanner(policy)
         assertNotNull(planner.onSnapshot(snapshot(PostureState.FORWARD_HEAD, timestampMs = 0)))
         planner.onSnapshot(snapshot(PostureState.NORMAL, condition = null, timestampMs = 1_000))
@@ -84,21 +86,30 @@ class AlertPlannerTest {
         val request = planner.onSnapshot(snapshot(PostureState.HEAD_DOWN, condition = PostureCondition.HEAD_DOWN))
         assertNotNull(request)
         assertEquals(setOf(AlertChannel.SOUND, AlertChannel.SPEECH, AlertChannel.VIBRATION), request!!.channels)
-        assertEquals("注意抬头，放松颈部。", request.message)
+        assertEquals("低头了，请抬头。", request.message)
     }
 
     @Test
-    fun separateConditions_haveSeparateCooldowns() {
+    fun defaultPolicy_usesSpeechAndVibration() {
+        val planner = AlertPlanner(AlertPolicy())
+        val request = planner.onSnapshot(snapshot(PostureState.FORWARD_HEAD))
+        assertNotNull(request)
+        assertEquals(setOf(AlertChannel.SPEECH, AlertChannel.VIBRATION), request!!.channels)
+        assertEquals("头肩前倾了，请坐直。", request.message)
+    }
+
+    @Test
+    fun conditionChange_alertsWithoutWaitingForInterval() {
         val planner = AlertPlanner(policy)
         assertNotNull(planner.onSnapshot(snapshot(PostureState.FORWARD_HEAD, timestampMs = 0)))
-        assertNotNull(
-            planner.onSnapshot(
-                snapshot(
-                    PostureState.HEAD_DOWN,
-                    condition = PostureCondition.HEAD_DOWN,
-                    timestampMs = 1_000,
-                ),
+        val headDown = planner.onSnapshot(
+            snapshot(
+                PostureState.HEAD_DOWN,
+                condition = PostureCondition.HEAD_DOWN,
+                timestampMs = 1_000,
             ),
         )
+        assertNotNull(headDown)
+        assertEquals(PostureCondition.HEAD_DOWN, headDown!!.condition)
     }
 }

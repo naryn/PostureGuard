@@ -65,7 +65,7 @@ class MonitorController(
 
     @Volatile
     private var liveAlertChannels: Set<AlertChannel> =
-        setOf(AlertChannel.SOUND, AlertChannel.VIBRATION)
+        setOf(AlertChannel.SPEECH, AlertChannel.VIBRATION)
 
     private var tickerJob: Job? = null
     private var phase = MonitorPhase.IDLE
@@ -100,7 +100,7 @@ class MonitorController(
             if (phase == MonitorPhase.RUNNING || phase == MonitorPhase.PAUSED) return
             config = PostureThresholdConfig().copy(
                 mildHoldDurationMs = settings.mildHoldDurationMs,
-                alertCooldownMs = settings.alertCooldownMs,
+                alertRepeatIntervalMs = settings.alertRepeatIntervalMs,
             )
             val thresholds = EffectiveThresholds.from(config, settings.sensitivity, profile)
             baseline = profile
@@ -114,7 +114,7 @@ class MonitorController(
                     vibrationEnabled = true,
                     mildHoldDurationMs = settings.mildHoldDurationMs,
                     severeHoldDurationMs = config.severeHoldDurationMs,
-                    cooldownMs = settings.alertCooldownMs,
+                    repeatIntervalMs = settings.alertRepeatIntervalMs,
                     recoveryHoldDurationMs = config.recoveryHoldDurationMs,
                 ),
             )
@@ -267,9 +267,19 @@ class MonitorController(
                 val raw = feature.metrics
                 RawMetrics(
                     forwardOffset = forwardFilter.update(raw.forwardOffset, mono, previousMono),
-                    headAngleDeg = headFilter.update(raw.headAngleDeg, mono, previousMono),
-                    torsoAngleDeg = torsoFilter.update(raw.torsoAngleDeg, mono, previousMono),
+                    headAngleDeg = if (raw.faceMeasured) {
+                        headFilter.update(raw.headAngleDeg, mono, previousMono)
+                    } else {
+                        headFilter.current ?: 0.0
+                    },
+                    torsoAngleDeg = if (raw.torsoMeasured) {
+                        torsoFilter.update(raw.torsoAngleDeg, mono, previousMono)
+                    } else {
+                        torsoFilter.current ?: 0.0
+                    },
                     torsoScale = raw.torsoScale,
+                    torsoMeasured = raw.torsoMeasured,
+                    faceMeasured = raw.faceMeasured,
                 )
             } else {
                 null

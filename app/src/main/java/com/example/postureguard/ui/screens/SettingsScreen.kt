@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.postureguard.BuildConfig
 import com.example.postureguard.data.settings.AnalysisFrameRate
+import com.example.postureguard.data.settings.CameraLens
 import com.example.postureguard.posture.model.FacingDirection
 import com.example.postureguard.posture.model.SensitivityPreset
 import com.example.postureguard.ui.components.PageScaffold
@@ -124,7 +125,7 @@ fun SettingsScreen(
             )
             PgSwitchRow(
                 title = "语音",
-                description = "使用系统中文语音引擎",
+                description = "用系统中文语音朗读问题，如「低头了，请抬头」",
                 checked = settings.speechEnabled,
                 onCheckedChange = viewModel::updateSpeechEnabled,
             )
@@ -150,20 +151,20 @@ fun SettingsScreen(
                 onSelect = viewModel::updateMildHoldDurationMs,
             )
             PgDivider()
-            Text("提醒冷却时间", style = MaterialTheme.typography.bodyMedium, color = Ink)
+            Text("重复提醒间隔", style = MaterialTheme.typography.bodyMedium, color = Ink)
             Text(
-                "同一类异常在冷却期内不会重复提醒。",
+                "只要异常持续存在，就按这个间隔再次提醒；恢复自然坐姿后停止。",
                 style = MaterialTheme.typography.labelSmall,
                 color = InkSoft,
             )
             PgChoiceRow(
                 options = listOf(
-                    60_000L to "1 分钟",
-                    120_000L to "2 分钟",
-                    300_000L to "5 分钟",
+                    5_000L to "5 秒",
+                    10_000L to "10 秒",
+                    30_000L to "30 秒",
                 ),
-                selected = settings.alertCooldownMs,
-                onSelect = viewModel::updateAlertCooldownMs,
+                selected = settings.alertRepeatIntervalMs,
+                onSelect = viewModel::updateAlertRepeatIntervalMs,
             )
             PgNote("这些时长是工程默认值，不是医学建议；请根据自己和环境调整。")
         }
@@ -184,7 +185,23 @@ fun SettingsScreen(
 
         PgCard {
             PgSectionTitle("摄像头")
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            PgChoiceRow(
+                options = listOf(
+                    CameraLens.BACK to CameraLens.BACK.label,
+                    CameraLens.FRONT to CameraLens.FRONT.label,
+                ),
+                selected = settings.cameraLens,
+                onSelect = viewModel::updateCameraLens,
+            )
+            Text(
+                "前置摄像头预览会镜像显示；切换摄像头后需要重新校准。",
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSoft,
+            )
+            Row(
+                modifier = Modifier.padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     "朝向",
                     style = MaterialTheme.typography.bodyMedium,

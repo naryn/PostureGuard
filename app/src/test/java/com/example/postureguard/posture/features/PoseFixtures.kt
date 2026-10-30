@@ -10,7 +10,9 @@ object PoseFixtures {
 
     fun pose(
         nose: Pair<Float, Float>? = 0.52f to 0.40f,
+        eye: Pair<Float, Float>? = 0.49f to 0.39f,
         ear: Pair<Float, Float>? = 0.47f to 0.40f,
+        mouth: Pair<Float, Float>? = 0.51f to 0.45f,
         shoulder: Pair<Float, Float>? = 0.47f to 0.52f,
         hip: Pair<Float, Float>? = 0.47f to 0.70f,
         confidence: Float = 0.9f,
@@ -27,10 +29,14 @@ object PoseFixtures {
             points[type.index] = Landmark(x, pair.second, 0f, confidence, confidence)
         }
         put(LandmarkType.NOSE, nose)
+        put(LandmarkType.LEFT_EYE, eye)
         put(LandmarkType.LEFT_EAR, ear)
+        put(LandmarkType.MOUTH_LEFT, mouth)
         put(LandmarkType.LEFT_SHOULDER, shoulder)
         put(LandmarkType.LEFT_HIP, hip)
         put(LandmarkType.LEFT_KNEE, knee)
+        put(LandmarkType.RIGHT_EYE, eye, sideMirror = !mirror)
+        put(LandmarkType.MOUTH_RIGHT, mouth, sideMirror = !mirror)
         // The opposite side is intentionally low confidence so the tracker picks LEFT.
         put(LandmarkType.RIGHT_EAR, ear, sideMirror = !mirror)
         put(LandmarkType.RIGHT_SHOULDER, shoulder, sideMirror = !mirror)

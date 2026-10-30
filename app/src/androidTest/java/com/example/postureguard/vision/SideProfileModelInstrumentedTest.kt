@@ -52,7 +52,8 @@ class SideProfileModelInstrumentedTest {
         println(
             "SIDE_PROFILE forward=${metrics.forwardOffset} head=${metrics.headAngleDeg} " +
                 "torso=${metrics.torsoAngleDeg} scale=${metrics.torsoScale} " +
-                "side=${result.quality.selectedSide} issues=${result.quality.issues}",
+                "face=${metrics.faceMeasured} side=${result.quality.selectedSide} " +
+                "issues=${result.quality.issues}",
         )
     }
 

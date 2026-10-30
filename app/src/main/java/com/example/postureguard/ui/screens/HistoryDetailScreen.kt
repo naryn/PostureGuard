@@ -154,7 +154,7 @@ private fun SessionDistribution(s: SessionEntity) {
         PgBarRow("头部前倾", s.forwardHeadDurationMs, maxValue, Warm)
         PgBarRow("低头", s.headDownDurationMs, maxValue, Lavender)
         PgBarRow("埋头（前倾 + 低头）", s.headDownForwardDurationMs, maxValue, Alert)
-        PgBarRow("躯干前倾", s.torsoLeanDurationMs, maxValue, TealDeep)
+        PgBarRow("驼背/弯腰", s.torsoLeanDurationMs, maxValue, TealDeep)
         PgBarRow("低质量 / 离开画面", s.lowConfidenceDurationMs, maxValue, InkSoft)
     }
 }
@@ -210,9 +210,9 @@ private fun EventRow(event: PostureEventEntity) {
                 color = if (severity == ConditionSeverity.SEVERE) Alert else Warm,
             )
             val peaks = buildList {
-                event.peakForwardDelta?.let { add("前移 ${formatDecimal(it, 2)}") }
+                event.peakForwardDelta?.let { add("头肩 ${formatDecimal(it, 2)}") }
                 event.peakHeadDownDelta?.let { add("低头 ${formatDecimal(it, 1)}°") }
-                event.peakTorsoLeanDelta?.let { add("躯干 ${formatDecimal(it, 1)}°") }
+                event.peakTorsoLeanDelta?.let { add("肩髋 ${formatDecimal(it, 1)}°") }
             }
             if (peaks.isNotEmpty()) {
                 Text(

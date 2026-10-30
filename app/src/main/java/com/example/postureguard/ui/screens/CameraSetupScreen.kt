@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.postureguard.data.settings.CameraLens
 import com.example.postureguard.posture.model.BodySide
 import com.example.postureguard.posture.model.FacingDirection
 import com.example.postureguard.posture.model.QualityIssue
@@ -51,9 +52,26 @@ fun CameraSetupScreen(
 
     PageScaffold(
         title = "摆放手机",
-        subtitle = "侧面、稳定，让头、肩、髋完整出现在画面中",
+        subtitle = "侧面、稳定，让头、肩和面部完整出现在画面中",
         onBack = onBack,
     ) {
+        PgCard {
+            PgSectionTitle("使用哪个摄像头")
+            PgChoiceRow(
+                options = listOf(
+                    CameraLens.BACK to CameraLens.BACK.label,
+                    CameraLens.FRONT to CameraLens.FRONT.label,
+                ),
+                selected = settings.cameraLens,
+                onSelect = viewModel::setLens,
+            )
+            Text(
+                "前置摄像头预览会镜像显示；切换摄像头会改变画面投影，请重新校准。",
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSoft,
+            )
+        }
+
         PgCard {
             PgSectionTitle("你面向画面的方向")
             PgChoiceRow(
@@ -75,6 +93,7 @@ fun CameraSetupScreen(
             CameraPreviewCard(
                 active = true,
                 targetFps = settings.targetFps,
+                lens = settings.cameraLens,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(260.dp),
@@ -86,9 +105,10 @@ fun CameraSetupScreen(
             PgSectionTitle("画面检查")
             ProbeCheckRow("检测到人体", probe.hasPerson)
             ProbeCheckRow(
-                "头、肩、髋在画面内",
+                "头、肩在画面内",
                 probe.hasPerson && probe.qualityValid,
             )
+            ProbeCheckRow("眼睛、嘴部可见", probe.faceVisible)
             ProbeCheckRow(
                 "左右侧关键点稳定",
                 probe.hasPerson && QualityIssue.SIDE_UNSTABLE !in probe.issues,
@@ -115,15 +135,15 @@ fun CameraSetupScreen(
                 )
             }
             if (!probe.hasPerson) {
-                PgNote("请坐到手机侧面，并让头部、肩膀和髋部进入画面。")
+                PgNote("请坐到手机侧面，让头部、肩膀和面部进入画面。眼睛、鼻子、耳朵用于判断前倾，眼睛和嘴部可见时才能判断低头；髋部能拍到可额外判断驼背/弯腰（肩髋角度）。")
             }
         }
 
         PgCard {
             PgSectionTitle("摆放建议")
             TipRow(1, "把手机固定在书桌侧面，用支架或靠墙立稳。")
-            TipRow(2, "后置摄像头朝向自己，画面覆盖头部到髋部。")
-            TipRow(3, "避免强背光，也不要让桌面挡住髋部。")
+            TipRow(2, "${if (settings.cameraLens == CameraLens.FRONT) "前置" else "后置"}摄像头朝向自己，画面覆盖头部到肩膀，眼睛和嘴部不要被遮挡。")
+            TipRow(3, "避免强背光，也不要让桌面挡住肩膀。髋部在画面内时可额外判断驼背/弯腰。")
             TipRow(4, "监测期间尽量不移动手机；移动后重新校准。")
             TipRow(5, "自然坐下，不要刻意挺胸或仰头。")
         }

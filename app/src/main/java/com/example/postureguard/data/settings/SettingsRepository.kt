@@ -43,7 +43,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setFacingDirection(value: FacingDirection) = edit(Keys.FACING, value.name)
 
-    suspend fun setAlertCooldownMs(value: Long) = edit(Keys.COOLDOWN_MS, value)
+    suspend fun setCameraLens(value: CameraLens) = edit(Keys.CAMERA_LENS, value.name)
+
+    suspend fun setAlertRepeatIntervalMs(value: Long) = edit(Keys.REPEAT_INTERVAL_MS, value)
 
     suspend fun setMildHoldDurationMs(value: Long) = edit(Keys.MILD_HOLD_MS, value)
 
@@ -55,16 +57,26 @@ class SettingsRepository(private val context: Context) {
 
     private fun Preferences.toAppSettings(): AppSettings = AppSettings(
         sensitivity = readEnum(Keys.SENSITIVITY, SensitivityPreset.BALANCED),
-        soundEnabled = this[Keys.SOUND] ?: true,
-        speechEnabled = this[Keys.SPEECH] ?: false,
+        soundEnabled = this[Keys.SOUND] ?: false,
+        speechEnabled = this[Keys.SPEECH] ?: true,
         vibrationEnabled = this[Keys.VIBRATION] ?: true,
         keepScreenOn = this[Keys.KEEP_SCREEN_ON] ?: false,
         analysisFrameRate = readEnum(Keys.FRAME_RATE, AnalysisFrameRate.AUTO),
         facingDirection = readEnum(Keys.FACING, FacingDirection.FACING_RIGHT),
-        alertCooldownMs = (this[Keys.COOLDOWN_MS] ?: 120_000L).coerceIn(15_000L, 900_000L),
-        mildHoldDurationMs = (this[Keys.MILD_HOLD_MS] ?: 8_000L).coerceIn(3_000L, 60_000L),
+        cameraLens = readEnum(Keys.CAMERA_LENS, CameraLens.BACK),
+        alertRepeatIntervalMs = resolveRepeatIntervalMs(),
+        mildHoldDurationMs = (this[Keys.MILD_HOLD_MS] ?: 5_000L).coerceIn(3_000L, 60_000L),
         onboardingCompleted = this[Keys.ONBOARDING] ?: false,
     )
+
+    private fun Preferences.resolveRepeatIntervalMs(): Long {
+        // Older builds stored a 1-5 minute cooldown under a different key; those values
+        // are no longer meaningful for persistent reminders, so fall back to the default.
+        val stored = this[Keys.REPEAT_INTERVAL_MS]
+            ?: this[Keys.LEGACY_COOLDOWN_MS]?.takeIf { it in 3_000L..30_000L }
+            ?: DEFAULT_REPEAT_INTERVAL_MS
+        return stored.coerceIn(3_000L, 60_000L)
+    }
 
     private inline fun <reified T : Enum<T>> Preferences.readEnum(
         key: Preferences.Key<String>,
@@ -82,8 +94,14 @@ class SettingsRepository(private val context: Context) {
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val FRAME_RATE = stringPreferencesKey("analysis_frame_rate")
         val FACING = stringPreferencesKey("facing_direction")
-        val COOLDOWN_MS = longPreferencesKey("alert_cooldown_ms")
+        val CAMERA_LENS = stringPreferencesKey("camera_lens")
+        val REPEAT_INTERVAL_MS = longPreferencesKey("alert_repeat_ms")
+        val LEGACY_COOLDOWN_MS = longPreferencesKey("alert_cooldown_ms")
         val MILD_HOLD_MS = longPreferencesKey("mild_hold_ms")
         val ONBOARDING = booleanPreferencesKey("onboarding_completed")
+    }
+
+    private companion object {
+        const val DEFAULT_REPEAT_INTERVAL_MS = 10_000L
     }
 }
