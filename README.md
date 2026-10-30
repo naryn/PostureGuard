@@ -42,6 +42,8 @@ PostureGuard 是一个完全本地运行的 Android 侧坐姿提醒应用：把�
 ## 构建与运行
 
 ```bash
+git clone git@github.com:naryn/PostureGuard.git
+cd PostureGuard
 ./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.example.postureguard/.MainActivity
